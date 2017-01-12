@@ -85,11 +85,12 @@ public class DataSpider
     public static void refreshData()
     {
         Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
-        logger.info("stock number {}", stocks.size());
+        logger.info("start refresh data stock number {}", stocks.size());
         for (String symbol : stocks)
         {
             getStockChartListBySymbol(symbol);
         }
+        logger.info("end refresh data");
     }
 
     public static void analazyData()
