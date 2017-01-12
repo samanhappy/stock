@@ -24,6 +24,12 @@ public class TestDataSpider
     {
         DataSpider.loadStocks();
     }
+    
+    @Test
+    public void testPrintStocks() throws Exception
+    {
+        DataSpider.printStocks();
+    }
 
     @Test
     public void testCleanStock() throws Exception

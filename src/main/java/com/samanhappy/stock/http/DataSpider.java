@@ -172,6 +172,15 @@ public class DataSpider
         }
     }
 
+    public static void printStocks()
+    {
+        Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
+        for (String symbol : stocks)
+        {
+            System.out.println(symbol + ";" + RedisSupport.getJedis().hget(STOCKLIST_KEY, symbol));
+        }
+    }
+
     public static void loadStocks()
     {
         try
