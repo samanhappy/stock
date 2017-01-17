@@ -153,6 +153,7 @@ public class DataSpider
         }
         Collections.sort(results);
 
+        logger.info("find {} results", results.size());
         for (AnalazyResult result : results)
         {
             System.out.println(result);
