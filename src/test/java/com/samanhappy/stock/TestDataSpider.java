@@ -22,7 +22,7 @@ public class TestDataSpider
     @Test
     public void testLoadStocks() throws Exception
     {
-        DataSpider.loadStocks();
+        DataSpider.loadStocksInfo();
     }
     
     @Test

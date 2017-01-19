@@ -6,12 +6,15 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -26,16 +29,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.alibaba.fastjson.JSONObject;
-import com.samanhappy.stock.domain.AnalazyResult;
+import com.samanhappy.stock.domain.AnalyzeResult;
 import com.samanhappy.stock.domain.Chart;
 import com.samanhappy.stock.domain.Stock;
 import com.samanhappy.stock.domain.StockListResp;
+import com.samanhappy.stock.domain.StockResult;
 import com.samanhappy.stock.http.param.StockInfoParam;
 import com.samanhappy.stock.http.param.StockListParam;
 import com.samanhappy.stock.storage.RedisSupport;
 
 public class DataSpider
 {
+    private static final String ANALYZE_RESULT_KEY = "analyze_result";
+
+    private static final String DATA_REFRESH_TIME_KEY = "data_refresh_time";
+
+    private static final String DATA_REFRESH_STATE_KEY = "data_refresh_state";
+
     private static final String STOCKLIST_KEY = "stocklist";
 
     private static CloseableHttpClient client = HttpClientBuilder.create().build();
@@ -49,6 +59,8 @@ public class DataSpider
     private static final String STOCKLIST_URL = "https://xueqiu.com/stock/forchartk/stocklist.json";
 
     private static final String STOCKINFO_URL = "https://xueqiu.com/v4/stock/quote.json";
+
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     static
     {
@@ -86,16 +98,40 @@ public class DataSpider
     {
         Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
         logger.info("start refresh data stock number {}", stocks.size());
+        RedisSupport.getJedis().set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 开始分析...");
         for (String symbol : stocks)
         {
             getStockChartListBySymbol(symbol);
         }
+        RedisSupport.getJedis().set(DATA_REFRESH_TIME_KEY, dateFormat.format(new Date()));
+        RedisSupport.getJedis().set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 分析完成！！！");
         logger.info("end refresh data");
     }
 
-    public static void analazyData()
+    public static String refreshDataState()
     {
-        List<AnalazyResult> results = new ArrayList<AnalazyResult>();
+        return RedisSupport.getJedis().get(DATA_REFRESH_STATE_KEY);
+    }
+
+    public static String analyzeResult()
+    {
+        String result = RedisSupport.getJedis().get(ANALYZE_RESULT_KEY);
+        if (StringUtils.isNotBlank(result))
+        {
+            AnalyzeResult res = JSONObject.parseObject(result, AnalyzeResult.class);
+            StringBuilder sb = new StringBuilder();
+            sb.append("本次分析结果状态：").append(res.getState()).append("<br/>");
+            sb.append("分析时间：").append(res.getAnalyzeTime()).append("<br/>");
+            sb.append("数据更新时间：").append(res.getDataRefreshTime()).append("<br/>");
+            sb.append("筛选股票数据：").append("<br/>").append(res.getResult());
+            return sb.toString();
+        }
+        return "不存在分析结果";
+    }
+
+    public static List<StockResult> analazyData()
+    {
+        List<StockResult> results = new ArrayList<StockResult>();
         Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
@@ -127,8 +163,8 @@ public class DataSpider
                     {
                         String stockInfo = RedisSupport.getJedis().hget(STOCKLIST_KEY, symbol);
                         Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
-                        results.add(new AnalazyResult(symbol, stock.getName(), percent, 1, yesterday.getPercent(),
-                                today.getPercent()));
+                        results.add(new StockResult(symbol, stock.getName(), percent, 1, yesterday.getPercent(), today
+                                .getPercent()));
                         // logger.info("昨天上涨今天下跌缩量股票 {} 缩量比{} {} {} {} {}", symbol, percent, yesterday.getPercent(),
                         //        today.getPercent(), yesterday.getVolume(), today.getVolume());
                     }
@@ -143,7 +179,7 @@ public class DataSpider
                     {
                         String stockInfo = RedisSupport.getJedis().hget(STOCKLIST_KEY, symbol);
                         Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
-                        results.add(new AnalazyResult(symbol, stock.getName(), percent, 2, lastday.getPercent(), today
+                        results.add(new StockResult(symbol, stock.getName(), percent, 2, lastday.getPercent(), today
                                 .getPercent()));
                         // logger.info("前天上涨今天下跌缩量股票 {} 缩量比 {} {} {} {} {}", symbol, percent, lastday.getPercent(),
                         //        today.getPercent(), lastday.getVolume(), today.getVolume());
@@ -154,10 +190,19 @@ public class DataSpider
         Collections.sort(results);
 
         logger.info("find {} results", results.size());
-        for (AnalazyResult result : results)
+        StringBuilder sb = new StringBuilder();
+        for (StockResult result : results)
         {
             System.out.println(result);
+            sb.append(result).append("<br/>");
         }
+        AnalyzeResult analResult = new AnalyzeResult();
+        analResult.setResult(results.size() > 0 ? sb.toString() : "没有符合条件的股票");
+        analResult.setState("成功");
+        analResult.setDataRefreshTime(RedisSupport.getJedis().get(DATA_REFRESH_TIME_KEY));
+        analResult.setAnalyzeTime(dateFormat.format(new Date()));
+        RedisSupport.getJedis().set(ANALYZE_RESULT_KEY, JSONObject.toJSONString(analResult));
+        return results;
     }
 
     public static void cleanStock()
@@ -182,7 +227,7 @@ public class DataSpider
         }
     }
 
-    public static void loadStocks()
+    public static void loadStocksInfo()
     {
         try
         {
@@ -191,6 +236,30 @@ public class DataSpider
             while (symbol != null)
             {
                 addStockBySymbol(symbol.toUpperCase());
+                symbol = br.readLine();
+            }
+            br.close();
+        }
+        catch (FileNotFoundException e)
+        {
+            e.printStackTrace();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    public static void loadStocks()
+    {
+        try
+        {
+            BufferedReader br = new BufferedReader(new FileReader("stockjson.txt"));
+            String symbol = br.readLine();
+            while (symbol != null)
+            {
+                String[] strs = symbol.split(";");
+                RedisSupport.getJedis().hset(STOCKLIST_KEY, strs[0], strs[1]);
                 symbol = br.readLine();
             }
             br.close();

@@ -1,6 +1,6 @@
 package com.samanhappy.stock.domain;
 
-public class AnalazyResult implements Comparable<AnalazyResult>
+public class StockResult implements Comparable<StockResult>
 {
     private String symbol;
 
@@ -16,7 +16,7 @@ public class AnalazyResult implements Comparable<AnalazyResult>
 
     private float secondPercent;
 
-    public AnalazyResult(String symbol, String name, float volumeRatio, int strategy, float firstPercent,
+    public StockResult(String symbol, String name, float volumeRatio, int strategy, float firstPercent,
             float secondPercent)
     {
         super();
@@ -29,7 +29,7 @@ public class AnalazyResult implements Comparable<AnalazyResult>
     }
 
     @Override
-    public int compareTo(AnalazyResult o)
+    public int compareTo(StockResult o)
     {
         if (o != null)
         {
