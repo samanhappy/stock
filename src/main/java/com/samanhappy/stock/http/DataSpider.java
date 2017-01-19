@@ -1,6 +1,7 @@
 package com.samanhappy.stock.http;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -254,7 +255,8 @@ public class DataSpider
     {
         try
         {
-            BufferedReader br = new BufferedReader(new FileReader("stockjson.txt"));
+            BufferedReader br = new BufferedReader(new FileReader(new File(DataSpider.class.getClassLoader()
+                    .getResource("stockjson.txt").getFile())));
             String symbol = br.readLine();
             while (symbol != null)
             {
@@ -263,6 +265,7 @@ public class DataSpider
                 symbol = br.readLine();
             }
             br.close();
+            logger.info("loadStocks success");
         }
         catch (FileNotFoundException e)
         {
