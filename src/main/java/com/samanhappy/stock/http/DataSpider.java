@@ -119,10 +119,12 @@ public class DataSpider
         {
             AnalyzeResult res = JSONObject.parseObject(result, AnalyzeResult.class);
             StringBuilder sb = new StringBuilder();
+            sb.append("<h1>");
             sb.append("本次分析结果状态：").append(res.getState()).append("<br/>");
             sb.append("分析时间：").append(res.getAnalyzeTime()).append("<br/>");
             sb.append("数据更新时间：").append(res.getDataRefreshTime()).append("<br/>");
             sb.append("筛选股票数据：").append("<br/>").append(res.getResult());
+            sb.append("</h1>");
             return sb.toString();
         }
         return "不存在分析结果";
