@@ -19,7 +19,7 @@ public class StockAnalyzeController
     public String refresh()
     {
         new RefreshDataThread().start();
-        return "启动刷新数据成功";
+        return "<h1>启动刷新数据成功</h1>";
     }
 
     @RequestMapping(value = "/result", produces = "text/html;charset=UTF-8")
@@ -41,7 +41,7 @@ public class StockAnalyzeController
     public String analyze()
     {
         new AnalyzeDataThread().start();
-        return "启动刷新分析成功";
+        return "<h1>启动刷新分析成功</h1>";
     }
 
     @RequestMapping(value = "/loadData", produces = "text/html;charset=UTF-8")
@@ -49,6 +49,6 @@ public class StockAnalyzeController
     public String loadData()
     {
         new LoadDataThread().start();
-        return "启动加载数据成功";
+        return "<h1>启动加载数据成功</h1>";
     }
 }
