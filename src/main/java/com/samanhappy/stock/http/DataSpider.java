@@ -22,8 +22,6 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
@@ -37,7 +35,9 @@ import com.samanhappy.stock.domain.StockListResp;
 import com.samanhappy.stock.domain.StockResult;
 import com.samanhappy.stock.http.param.StockInfoParam;
 import com.samanhappy.stock.http.param.StockListParam;
-import com.samanhappy.stock.storage.RedisSupport;
+import com.samanhappy.stock.storage.RedisClient;
+import com.samanhappy.stock.thread.StockChartListExecutor;
+import com.samanhappy.stock.thread.StockChartListRunnable;
 
 public class DataSpider
 {
@@ -48,8 +48,6 @@ public class DataSpider
     private static final String DATA_REFRESH_STATE_KEY = "data_refresh_state";
 
     private static final String STOCKLIST_KEY = "stocklist";
-
-    private static CloseableHttpClient client = HttpClientBuilder.create().build();
 
     private static HttpClientContext context = HttpClientContext.create();
 
@@ -78,7 +76,7 @@ public class DataSpider
         HttpResponse homeResponse;
         try
         {
-            homeResponse = client.execute(homeGet, context);
+            homeResponse = HttpClientHelper.getHttpClient().execute(homeGet, context);
             if (homeResponse.getStatusLine().getStatusCode() == 200)
             {
                 logger.info("init success");
@@ -88,6 +86,7 @@ public class DataSpider
             {
                 logger.error("init error {}", EntityUtils.toString(homeResponse.getEntity()));
             }
+            homeResponse.getEntity().getContent().close();
         }
         catch (IOException e)
         {
@@ -97,26 +96,25 @@ public class DataSpider
 
     public static void refreshData()
     {
-        Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
+        Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         logger.info("start refresh data stock number {}", stocks.size());
-        RedisSupport.getJedis().set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 开始分析...");
+        RedisClient.set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 开始分析...");
+        StockChartListExecutor executor = new StockChartListExecutor(stocks.size());
         for (String symbol : stocks)
         {
-            getStockChartListBySymbol(symbol);
+            executor.execute(new StockChartListRunnable(symbol, executor));
         }
-        RedisSupport.getJedis().set(DATA_REFRESH_TIME_KEY, dateFormat.format(new Date()));
-        RedisSupport.getJedis().set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 分析完成！！！");
         logger.info("end refresh data");
     }
 
     public static String refreshDataState()
     {
-        return RedisSupport.getJedis().get(DATA_REFRESH_STATE_KEY);
+        return RedisClient.get(DATA_REFRESH_STATE_KEY);
     }
 
     public static String analyzeResult()
     {
-        String result = RedisSupport.getJedis().get(ANALYZE_RESULT_KEY);
+        String result = RedisClient.get(ANALYZE_RESULT_KEY);
         if (StringUtils.isNotBlank(result))
         {
             AnalyzeResult res = JSONObject.parseObject(result, AnalyzeResult.class);
@@ -133,7 +131,7 @@ public class DataSpider
     public static List<StockResult> analazyData()
     {
         List<StockResult> results = new ArrayList<StockResult>();
-        Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
+        Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
             if (symbol.startsWith("SZ1") || symbol.startsWith("SH2"))
@@ -141,14 +139,14 @@ public class DataSpider
                 continue;
             }
 
-            if (!RedisSupport.getJedis().exists(String.format("chartlist_%s", symbol)))
+            if (!RedisClient.exists(String.format("chartlist_%s", symbol)))
             {
                 // getStockChartListBySymbol(symbol);
                 logger.info("cannot find stock {}", symbol);
                 continue;
             }
 
-            List<String> charts = RedisSupport.getJedis().lrange(String.format("chartlist_%s", symbol), 0, 10);
+            List<String> charts = RedisClient.lrange(String.format("chartlist_%s", symbol), 0, 10);
             if (charts.size() >= 3)
             {
                 Chart today = JSONObject.parseObject(charts.get(0), Chart.class);
@@ -162,7 +160,7 @@ public class DataSpider
                     // 今天相比昨天缩量
                     if (today.getVolume() < yesterday.getVolume() && percent < 0.7)
                     {
-                        String stockInfo = RedisSupport.getJedis().hget(STOCKLIST_KEY, symbol);
+                        String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
                         Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
                         results.add(new StockResult(symbol, stock.getName(), percent, 1, yesterday.getPercent(), today
                                 .getPercent()));
@@ -176,9 +174,9 @@ public class DataSpider
                 {
                     float percent = (float) today.getVolume() / lastday.getVolume();
                     // 今天相比前天缩量
-                    if (today.getVolume() < lastday.getVolume() && percent < 0.7)
+                    if (today.getVolume() < lastday.getVolume() && percent < 0.8)
                     {
-                        String stockInfo = RedisSupport.getJedis().hget(STOCKLIST_KEY, symbol);
+                        String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
                         Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
                         results.add(new StockResult(symbol, stock.getName(), percent, 2, lastday.getPercent(), today
                                 .getPercent()));
@@ -200,20 +198,20 @@ public class DataSpider
         AnalyzeResult analResult = new AnalyzeResult();
         analResult.setResult(results.size() > 0 ? sb.toString() : "没有符合条件的股票");
         analResult.setState("成功");
-        analResult.setDataRefreshTime(RedisSupport.getJedis().get(DATA_REFRESH_TIME_KEY));
+        analResult.setDataRefreshTime(RedisClient.get(DATA_REFRESH_TIME_KEY));
         analResult.setAnalyzeTime(dateFormat.format(new Date()));
-        RedisSupport.getJedis().set(ANALYZE_RESULT_KEY, JSONObject.toJSONString(analResult));
+        RedisClient.set(ANALYZE_RESULT_KEY, JSONObject.toJSONString(analResult));
         return results;
     }
 
     public static void cleanStock()
     {
-        Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
+        Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
             if (symbol.startsWith("SZ1") || symbol.startsWith("SH2"))
             {
-                RedisSupport.getJedis().hdel(STOCKLIST_KEY, symbol);
+                RedisClient.hdel(STOCKLIST_KEY, symbol);
                 logger.info("clean stock {}", symbol);
             }
         }
@@ -221,10 +219,10 @@ public class DataSpider
 
     public static void printStocks()
     {
-        Set<String> stocks = RedisSupport.getJedis().hkeys(STOCKLIST_KEY);
+        Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
-            System.out.println(symbol + ";" + RedisSupport.getJedis().hget(STOCKLIST_KEY, symbol));
+            System.out.println(symbol + ";" + RedisClient.hget(STOCKLIST_KEY, symbol));
         }
     }
 
@@ -261,7 +259,7 @@ public class DataSpider
             while (symbol != null)
             {
                 String[] strs = symbol.split(";");
-                RedisSupport.getJedis().hset(STOCKLIST_KEY, strs[0], strs[1]);
+                RedisClient.hset(STOCKLIST_KEY, strs[0], strs[1]);
                 symbol = br.readLine();
             }
             br.close();
@@ -277,13 +275,13 @@ public class DataSpider
         }
     }
 
-    private static void getStockChartListBySymbol(String symbol)
+    public static void getStockChartListBySymbol(String symbol)
     {
         HttpGet get = new HttpGet(STOCKLIST_URL + generateUrlParams(new StockListParam(symbol)));
         HttpResponse response;
         try
         {
-            response = client.execute(get, context);
+            response = HttpClientHelper.getHttpClient().execute(get, context);
             if (response.getStatusLine().getStatusCode() == 200)
             {
                 StockListResp resp = JSONObject.parseObject(EntityUtils.toString(response.getEntity()),
@@ -292,7 +290,7 @@ public class DataSpider
                 {
                     for (Chart chart : resp.getChartlist())
                     {
-                        RedisSupport.getJedis().lpush(String.format("chartlist_%s", symbol),
+                        RedisClient.lpush(String.format("chartlist_%s", symbol),
                                 JSONObject.toJSONString(chart));
                     }
                     logger.info("stock chartlist success for {}", symbol);
@@ -306,6 +304,7 @@ public class DataSpider
             {
                 logger.error("getStockListBySymbol error {}", EntityUtils.toString(response.getEntity()));
             }
+            response.getEntity().getContent().close();
         }
         catch (IOException e)
         {
@@ -317,19 +316,19 @@ public class DataSpider
     {
         for (String symbol : symbols)
         {
-            if (!RedisSupport.getJedis().hexists(STOCKLIST_KEY, symbol))
+            if (!RedisClient.hexists(STOCKLIST_KEY, symbol))
             {
                 HttpGet get = new HttpGet(STOCKINFO_URL + generateUrlParams(new StockInfoParam(symbol)));
                 HttpResponse response;
                 try
                 {
-                    response = client.execute(get, context);
+                    response = HttpClientHelper.getHttpClient().execute(get, context);
                     if (response.getStatusLine().getStatusCode() == 200)
                     {
                         JSONObject json = JSONObject.parseObject(EntityUtils.toString(response.getEntity()));
                         if (json.containsKey(symbol))
                         {
-                            RedisSupport.getJedis().hset(STOCKLIST_KEY, symbol, json.getString(symbol));
+                            RedisClient.hset(STOCKLIST_KEY, symbol, json.getString(symbol));
                             logger.info("add stock success for {}", symbol);
                         }
                     }
@@ -337,6 +336,7 @@ public class DataSpider
                     {
                         logger.error("getStockInfoBySymbol error {}", EntityUtils.toString(response.getEntity()));
                     }
+                    response.getEntity().getContent().close();
                 }
                 catch (IOException e)
                 {

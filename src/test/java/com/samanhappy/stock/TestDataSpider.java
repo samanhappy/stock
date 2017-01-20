@@ -17,14 +17,15 @@ public class TestDataSpider
     public void testRefreshData() throws Exception
     {
         DataSpider.refreshData();
+        Thread.sleep(1000 * 60 * 60);
     }
-    
+
     @Test
     public void testLoadStocks() throws Exception
     {
         DataSpider.loadStocksInfo();
     }
-    
+
     @Test
     public void testPrintStocks() throws Exception
     {
