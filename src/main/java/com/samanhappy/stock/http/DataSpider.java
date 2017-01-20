@@ -109,7 +109,7 @@ public class DataSpider
 
     public static String refreshDataState()
     {
-        return RedisClient.get(DATA_REFRESH_STATE_KEY);
+        return "<h1>" + RedisClient.get(DATA_REFRESH_STATE_KEY) + "</h1>";
     }
 
     public static String analyzeResult()
@@ -292,8 +292,7 @@ public class DataSpider
                 {
                     for (Chart chart : resp.getChartlist())
                     {
-                        RedisClient.lpush(String.format("chartlist_%s", symbol),
-                                JSONObject.toJSONString(chart));
+                        RedisClient.lpush(String.format("chartlist_%s", symbol), JSONObject.toJSONString(chart));
                     }
                     logger.info("stock chartlist success for {}", symbol);
                 }

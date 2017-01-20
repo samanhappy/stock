@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,11 +32,10 @@ public class RedisClient
         poolConfig.setMaxWaitMillis(Long.valueOf(bundle.getString("redis.pool.maxWait")));
         poolConfig.setTestOnBorrow(Boolean.valueOf(bundle.getString("redis.pool.testOnBorrow")));
         poolConfig.setTestOnReturn(Boolean.valueOf(bundle.getString("redis.pool.testOnReturn")));
-        String password = bundle.getString("redis.password");
-        if (StringUtils.isNotBlank(password))
+        if (bundle.containsKey("redis.password"))
         {
             pool = new JedisPool(poolConfig, bundle.getString("redis.ip"), Integer.valueOf(bundle
-                    .getString("redis.port")), 10 * 1000, password);
+                    .getString("redis.port")), 10 * 1000, bundle.getString("redis.password"));
         }
         else
         {
