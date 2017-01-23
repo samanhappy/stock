@@ -186,6 +186,16 @@ public class DataSpider
                         //        today.getPercent(), lastday.getVolume(), today.getVolume());
                     }
                 }
+
+                // 下影线
+                float percent = (float) (today.getClose() - today.getLow()) / today.getClose();
+                if (percent > 0.25)
+                {
+                    String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
+                    Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
+                    results.add(new StockResult(symbol, stock.getName(), percent, 3, lastday.getPercent(), today
+                            .getPercent()));
+                }
             }
         }
         Collections.sort(results);
