@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.samanhappy.stock.http.DataSpider;
 import com.samanhappy.stock.thread.AnalyzeDataThread;
+import com.samanhappy.stock.thread.CleanDataThread;
 import com.samanhappy.stock.thread.LoadDataThread;
 import com.samanhappy.stock.thread.RefreshDataThread;
 
@@ -42,6 +43,14 @@ public class StockAnalyzeController
     {
         new AnalyzeDataThread().start();
         return "<h1>启动刷新分析成功</h1>";
+    }
+
+    @RequestMapping(value = "/clean", produces = "text/html;charset=UTF-8")
+    @ResponseBody
+    public String clean()
+    {
+        new CleanDataThread().start();
+        return "<h1>启动清理成功</h1>";
     }
 
     @RequestMapping(value = "/loadData", produces = "text/html;charset=UTF-8")
