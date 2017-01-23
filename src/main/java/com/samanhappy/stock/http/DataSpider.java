@@ -134,6 +134,7 @@ public class DataSpider
     {
         List<StockResult> results = new ArrayList<StockResult>();
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
+        Date now = new Date();
         for (String symbol : stocks)
         {
             if (symbol.startsWith("SZ1") || symbol.startsWith("SH2"))
@@ -144,7 +145,7 @@ public class DataSpider
             if (!RedisClient.exists(String.format("chartlist_%s", symbol)))
             {
                 // getStockChartListBySymbol(symbol);
-                logger.info("cannot find stock {}", symbol);
+                // logger.info("cannot find stock {}", symbol);
                 continue;
             }
 
@@ -154,6 +155,7 @@ public class DataSpider
                 Chart today = JSONObject.parseObject(charts.get(0), Chart.class);
                 Chart yesterday = JSONObject.parseObject(charts.get(1), Chart.class);
                 Chart lastday = JSONObject.parseObject(charts.get(2), Chart.class);
+
 
                 // 昨天上涨今天下跌
                 if (yesterday.getPercent() > 7 && today.getPercent() < -1)
@@ -187,14 +189,26 @@ public class DataSpider
                     }
                 }
 
-                // 下影线
-                float percent = (float) (today.getClose() - today.getLow()) / today.getClose();
-                if (percent > 0.25)
+                
+                // 近三天没有数据的不处理
+                if ((now.getTime() - today.getTime().getTime()) > 1000 * 3600 * 24 * 4)
                 {
-                    String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
-                    Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
-                    results.add(new StockResult(symbol, stock.getName(), percent, 3, lastday.getPercent(), today
-                            .getPercent()));
+                    continue;
+                }
+                
+                // 下跌下影线
+                if (today.getPercent() < 0 && (today.getHigh() - today.getLow()) / today.getLow() > 0.06)
+                {
+                    // 以开盘收盘低点来计算
+                    float val = today.getClose() < today.getOpen() ? today.getClose() : today.getOpen();
+                    float percent = (float) (val - today.getLow()) / (today.getHigh() - today.getLow());
+                    if (percent > 0.35)
+                    {
+                        String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
+                        Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
+                        results.add(new StockResult(symbol, stock.getName(), percent, 3, lastday.getPercent(), today
+                                .getPercent()));
+                    }
                 }
             }
         }
@@ -211,7 +225,7 @@ public class DataSpider
         analResult.setResult(results.size() > 0 ? sb.toString() : "没有符合条件的股票");
         analResult.setState("成功");
         analResult.setDataRefreshTime(RedisClient.get(DATA_REFRESH_TIME_KEY));
-        analResult.setAnalyzeTime(dateFormat.format(new Date()));
+        analResult.setAnalyzeTime(dateFormat.format(now));
         RedisClient.set(ANALYZE_RESULT_KEY, JSONObject.toJSONString(analResult));
         return results;
     }
@@ -221,7 +235,7 @@ public class DataSpider
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
-            if (symbol.startsWith("SZ1") || symbol.startsWith("SH2"))
+            if (symbol.startsWith("SZ1") || symbol.startsWith("SH2") || symbol.startsWith("SH5"))
             {
                 RedisClient.hdel(STOCKLIST_KEY, symbol);
                 logger.info("clean stock {}", symbol);
