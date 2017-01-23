@@ -98,7 +98,7 @@ public class DataSpider
     {
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         logger.info("start refresh data stock number {}", stocks.size());
-        RedisClient.set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 开始分析...");
+        RedisClient.set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 开始刷新数据...");
         StockChartListExecutor executor = new StockChartListExecutor(stocks.size());
         for (String symbol : stocks)
         {

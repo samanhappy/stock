@@ -33,7 +33,7 @@ public class StockChartListExecutor
         if (count == 0)
         {
             RedisClient.set(DATA_REFRESH_TIME_KEY, dateFormat.format(new Date()));
-            RedisClient.set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 分析完成！！！");
+            RedisClient.set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 刷新数据完成！！！");
             logger.info("all symbol handle complete");
         }
     }
