@@ -53,21 +53,11 @@ public class DataSpider
 
     private static Logger logger = LoggerFactory.getLogger(DataSpider.class);
 
-    private static boolean usable = false;
-
     private static final String STOCKLIST_URL = "https://xueqiu.com/stock/forchartk/stocklist.json";
 
     private static final String STOCKINFO_URL = "https://xueqiu.com/v4/stock/quote.json";
 
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-    static
-    {
-        if (!usable)
-        {
-            init();
-        }
-    }
 
     private static void init()
     {
@@ -80,7 +70,6 @@ public class DataSpider
             if (homeResponse.getStatusLine().getStatusCode() == 200)
             {
                 logger.info("init success");
-                usable = true;
             }
             else
             {
@@ -96,6 +85,7 @@ public class DataSpider
 
     public static void refreshData()
     {
+        init();
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         logger.info("start refresh data stock number {}", stocks.size());
         RedisClient.set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 开始刷新数据...");
@@ -105,6 +95,28 @@ public class DataSpider
             executor.execute(new StockChartListRunnable(symbol, executor));
         }
         logger.info("end refresh data");
+    }
+    
+    public static void clearData()
+    {
+        Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
+        for (String symbol : stocks)
+        {
+            RedisClient.del(String.format("chartlist_%s", symbol));
+            logger.info("clear chart data for {}", symbol);
+        }
+        logger.info("end clear data");
+    }
+    
+    public static void clearChartData()
+    {
+        Set<String> stocks = RedisClient.keys("chartlist_*");
+        for (String stock : stocks)
+        {
+            RedisClient.del(stock);
+            logger.info("clear chart data for {}", stock);
+        }
+        logger.info("end clear data");
     }
 
     public static String refreshDataState()
@@ -156,7 +168,6 @@ public class DataSpider
                 Chart yesterday = JSONObject.parseObject(charts.get(1), Chart.class);
                 Chart lastday = JSONObject.parseObject(charts.get(2), Chart.class);
 
-
                 // 昨天上涨今天下跌
                 if (yesterday.getPercent() > 7 && today.getPercent() < -1)
                 {
@@ -189,13 +200,12 @@ public class DataSpider
                     }
                 }
 
-                
                 // 近三天没有数据的不处理
                 if ((now.getTime() - today.getTime().getTime()) > 1000 * 3600 * 24 * 4)
                 {
                     continue;
                 }
-                
+
                 // 下跌下影线
                 if (today.getPercent() < 0 && (today.getHigh() - today.getLow()) / today.getLow() > 0.06)
                 {
@@ -254,6 +264,7 @@ public class DataSpider
 
     public static void loadStocksInfo()
     {
+        init();
         try
         {
             BufferedReader br = new BufferedReader(new FileReader("src/main/resources/stocks.txt"));
@@ -275,7 +286,7 @@ public class DataSpider
         }
     }
 
-    public static void loadStocks()
+    public static void loadStocksFromFile()
     {
         try
         {

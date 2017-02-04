@@ -19,6 +19,18 @@ public class TestDataSpider
         DataSpider.refreshData();
         Thread.sleep(1000 * 60 * 60);
     }
+    
+    @Test
+    public void testClearData() throws Exception
+    {
+        DataSpider.clearData();
+    }
+    
+    @Test
+    public void testClearChartData() throws Exception
+    {
+        DataSpider.clearChartData();
+    }
 
     @Test
     public void testLoadStocks() throws Exception

@@ -7,6 +7,6 @@ public class LoadDataThread extends Thread
     @Override
     public void run()
     {
-        DataSpider.loadStocks();
+        DataSpider.loadStocksFromFile();
     }
 }

@@ -23,7 +23,7 @@ public class RedisClient
         ResourceBundle bundle = ResourceBundle.getBundle("redis");
         if (bundle == null)
         {
-            throw new IllegalArgumentException("[recom-redis.properties] is not found!");
+            throw new IllegalArgumentException("[redis.properties] is not found!");
         }
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxTotal(Integer.valueOf(bundle.getString("redis.pool.maxActive")));
@@ -32,17 +32,16 @@ public class RedisClient
         poolConfig.setMaxWaitMillis(Long.valueOf(bundle.getString("redis.pool.maxWait")));
         poolConfig.setTestOnBorrow(Boolean.valueOf(bundle.getString("redis.pool.testOnBorrow")));
         poolConfig.setTestOnReturn(Boolean.valueOf(bundle.getString("redis.pool.testOnReturn")));
-        if (bundle.containsKey("redis.password"))
+        if ("SAM-PC".equals(System.getenv("COMPUTERNAME")))
         {
-            pool = new JedisPool(poolConfig, bundle.getString("redis.ip"), Integer.valueOf(bundle
+            pool = new JedisPool(poolConfig, bundle.getString("redis.ip.sam-pc"), Integer.valueOf(bundle
                     .getString("redis.port")), 10 * 1000, bundle.getString("redis.password"));
         }
         else
         {
-            pool = new JedisPool(poolConfig, bundle.getString("redis.ip"), Integer.valueOf(bundle
+            pool = new JedisPool(poolConfig, bundle.getString("redis.ip.default"), Integer.valueOf(bundle
                     .getString("redis.port")), 10 * 1000);
         }
-
     }
 
     public static void sadd(String key, String... members)
@@ -70,6 +69,24 @@ public class RedisClient
         {
             jedis = pool.getResource();
             jedis.expire(key, seconds);
+        }
+        catch (Exception e)
+        {
+            logger.error("", e);
+        }
+        finally
+        {
+            jedis.close();
+        }
+    }
+    
+    public static void del(String key)
+    {
+        Jedis jedis = null;
+        try
+        {
+            jedis = pool.getResource();
+            jedis.del(key);
         }
         catch (Exception e)
         {
@@ -199,6 +216,25 @@ public class RedisClient
         {
             jedis = pool.getResource();
             return jedis.smembers(key);
+        }
+        catch (Exception e)
+        {
+            logger.error("", e);
+        }
+        finally
+        {
+            jedis.close();
+        }
+        return null;
+    }
+    
+    public static Set<String> keys(String pattern)
+    {
+        Jedis jedis = null;
+        try
+        {
+            jedis = pool.getResource();
+            return jedis.keys(pattern);
         }
         catch (Exception e)
         {
@@ -359,6 +395,10 @@ public class RedisClient
         {
             jedis.close();
         }
+    }
 
+    public static void main(String[] args)
+    {
+        RedisClient.get("text");
     }
 }
