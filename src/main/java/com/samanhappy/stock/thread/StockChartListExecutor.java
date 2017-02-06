@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.samanhappy.stock.http.DataSpider;
 import com.samanhappy.stock.storage.RedisClient;
 
 public class StockChartListExecutor
@@ -35,6 +36,9 @@ public class StockChartListExecutor
             RedisClient.set(DATA_REFRESH_TIME_KEY, dateFormat.format(new Date()));
             RedisClient.set(DATA_REFRESH_STATE_KEY, dateFormat.format(new Date()) + " 刷新数据完成！！！");
             logger.info("all symbol handle complete");
+            
+            // 自动分析
+            DataSpider.analazyData();
         }
     }
 
