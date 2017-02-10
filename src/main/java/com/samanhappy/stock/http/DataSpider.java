@@ -59,8 +59,7 @@ public class DataSpider
 
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    private static void init()
-    {
+    private static void init() {
         Locale.setDefault(Locale.ENGLISH);
         HttpGet homeGet = new HttpGet("https://xueqiu.com");
         HttpResponse homeResponse;
@@ -83,8 +82,7 @@ public class DataSpider
         }
     }
 
-    public static void refreshData()
-    {
+    public static void refreshData() {
         init();
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         logger.info("start refresh data stock number {}", stocks.size());
@@ -96,9 +94,8 @@ public class DataSpider
         }
         logger.info("end refresh data");
     }
-    
-    public static void clearData()
-    {
+
+    public static void clearData() {
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
@@ -107,9 +104,8 @@ public class DataSpider
         }
         logger.info("end clear data");
     }
-    
-    public static void clearChartData()
-    {
+
+    public static void clearChartData() {
         Set<String> stocks = RedisClient.keys("chartlist_*");
         for (String stock : stocks)
         {
@@ -119,13 +115,11 @@ public class DataSpider
         logger.info("end clear data");
     }
 
-    public static String refreshDataState()
-    {
+    public static String refreshDataState() {
         return "<h1>" + RedisClient.get(DATA_REFRESH_STATE_KEY) + "</h1>";
     }
 
-    public static String analyzeResult()
-    {
+    public static String analyzeResult() {
         String result = RedisClient.get(ANALYZE_RESULT_KEY);
         if (StringUtils.isNotBlank(result))
         {
@@ -142,8 +136,7 @@ public class DataSpider
         return "不存在分析结果";
     }
 
-    public static List<StockResult> analazyData()
-    {
+    public static List<StockResult> analazyData() {
         List<StockResult> results = new ArrayList<StockResult>();
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         Date now = new Date();
@@ -200,6 +193,19 @@ public class DataSpider
                     }
                 }
 
+                // 放量上涨
+                /*if (today.getPercent() > 3 && today.getVolume() > yesterday.getVolume())
+                {
+                    float percent = (float) today.getVolume() / yesterday.getVolume();
+                    if (percent > 2)
+                    {
+                        String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
+                        Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
+                        results.add(new StockResult(symbol, stock.getName(), percent, 4, yesterday.getPercent(), today
+                                .getPercent()));
+                    }
+                }*/
+
                 // 近三天没有数据的不处理
                 if ((now.getTime() - today.getTime().getTime()) > 1000 * 3600 * 24 * 4)
                 {
@@ -240,8 +246,7 @@ public class DataSpider
         return results;
     }
 
-    public static void cleanStock()
-    {
+    public static void cleanStock() {
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
@@ -253,8 +258,7 @@ public class DataSpider
         }
     }
 
-    public static void printStocks()
-    {
+    public static void printStocks() {
         Set<String> stocks = RedisClient.hkeys(STOCKLIST_KEY);
         for (String symbol : stocks)
         {
@@ -262,8 +266,7 @@ public class DataSpider
         }
     }
 
-    public static void loadStocksInfo()
-    {
+    public static void loadStocksInfo() {
         init();
         try
         {
@@ -286,8 +289,7 @@ public class DataSpider
         }
     }
 
-    public static void loadStocksFromFile()
-    {
+    public static void loadStocksFromFile() {
         try
         {
             BufferedReader br = new BufferedReader(new FileReader(new File(DataSpider.class.getClassLoader()
@@ -312,8 +314,7 @@ public class DataSpider
         }
     }
 
-    public static void getStockChartListBySymbol(String symbol)
-    {
+    public static void getStockChartListBySymbol(String symbol) {
         HttpGet get = new HttpGet(STOCKLIST_URL + generateUrlParams(new StockListParam(symbol)));
         HttpResponse response;
         try
@@ -348,8 +349,7 @@ public class DataSpider
         }
     }
 
-    public static void addStockBySymbol(String... symbols)
-    {
+    public static void addStockBySymbol(String... symbols) {
         for (String symbol : symbols)
         {
             if (!RedisClient.hexists(STOCKLIST_KEY, symbol))
@@ -399,8 +399,7 @@ public class DataSpider
         return new UrlEncodedFormEntity(parameters, "UTF-8");
     }
 
-    public static String generateUrlParams(Object param)
-    {
+    public static String generateUrlParams(Object param) {
         StringBuilder parameters = new StringBuilder("?");
         Field[] fields = param.getClass().getDeclaredFields();
         for (int i = 0; i < fields.length; i++)

@@ -9,7 +9,7 @@ public class StockResult implements Comparable<StockResult>
     // 缩量比
     private float volumeRatio;
 
-    // 选中策略，1昨天上涨今日下跌缩量，2前天上涨今日下跌缩量，3下影线
+    // 选中策略，1昨天上涨今日下跌缩量，2前天上涨今日下跌缩量，3下影线，4今日放量上涨
     private int strategy;
 
     private float firstPercent;
@@ -29,13 +29,12 @@ public class StockResult implements Comparable<StockResult>
     }
 
     @Override
-    public int compareTo(StockResult o)
-    {
+    public int compareTo(StockResult o) {
         if (o != null)
         {
             if (this.strategy == o.getStrategy())
             {
-                if (strategy == 3)
+                if (strategy == 3 || strategy == 4)
                 {
                     if (this.volumeRatio <= o.getVolumeRatio())
                     {
@@ -71,8 +70,7 @@ public class StockResult implements Comparable<StockResult>
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         StringBuilder sb = new StringBuilder();
         if (strategy == 1)
         {
@@ -86,6 +84,10 @@ public class StockResult implements Comparable<StockResult>
         {
             sb.append("XYX");
         }
+        else if (strategy == 4)
+        {
+            sb.append("FLSZ");
+        }
         sb.append(' ');
         sb.append(symbol).append(' ');
         sb.append(name).append(' ');
@@ -95,63 +97,51 @@ public class StockResult implements Comparable<StockResult>
         return sb.toString();
     }
 
-    public String getSymbol()
-    {
+    public String getSymbol() {
         return symbol;
     }
 
-    public void setSymbol(String symbol)
-    {
+    public void setSymbol(String symbol) {
         this.symbol = symbol;
     }
 
-    public String getName()
-    {
+    public String getName() {
         return name;
     }
 
-    public void setName(String name)
-    {
+    public void setName(String name) {
         this.name = name;
     }
 
-    public float getVolumeRatio()
-    {
+    public float getVolumeRatio() {
         return volumeRatio;
     }
 
-    public void setVolumeRatio(float volumeRatio)
-    {
+    public void setVolumeRatio(float volumeRatio) {
         this.volumeRatio = volumeRatio;
     }
 
-    public int getStrategy()
-    {
+    public int getStrategy() {
         return strategy;
     }
 
-    public void setStrategy(int strategy)
-    {
+    public void setStrategy(int strategy) {
         this.strategy = strategy;
     }
 
-    public float getFirstPercent()
-    {
+    public float getFirstPercent() {
         return firstPercent;
     }
 
-    public void setFirstPercent(float firstPercent)
-    {
+    public void setFirstPercent(float firstPercent) {
         this.firstPercent = firstPercent;
     }
 
-    public float getSecondPercent()
-    {
+    public float getSecondPercent() {
         return secondPercent;
     }
 
-    public void setSecondPercent(float secondPercent)
-    {
+    public void setSecondPercent(float secondPercent) {
         this.secondPercent = secondPercent;
     }
 }
