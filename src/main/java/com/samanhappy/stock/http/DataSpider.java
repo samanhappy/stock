@@ -149,47 +149,54 @@ public class DataSpider
 
             if (!RedisClient.exists(String.format("chartlist_%s", symbol)))
             {
-                // getStockChartListBySymbol(symbol);
-                // logger.info("cannot find stock {}", symbol);
                 continue;
             }
 
             List<String> charts = RedisClient.lrange(String.format("chartlist_%s", symbol), 0, 10);
-            if (charts.size() >= 3)
+            if (charts.size() >= 4)
             {
                 Chart today = JSONObject.parseObject(charts.get(0), Chart.class);
                 Chart yesterday = JSONObject.parseObject(charts.get(1), Chart.class);
                 Chart lastday = JSONObject.parseObject(charts.get(2), Chart.class);
+                Chart lastlastday = JSONObject.parseObject(charts.get(3), Chart.class);
+                float threeDaysPercent = yesterday.getPercent() + lastday.getPercent() + lastlastday.getPercent();
 
-                // 昨天上涨今天下跌
-                if (yesterday.getPercent() > 7 && today.getPercent() < -1)
+                // 昨天或最近上涨今天下跌
+                if ((yesterday.getPercent() > 5 || threeDaysPercent > 5) && today.getPercent() < -1)
                 {
                     float percent = (float) today.getVolume() / yesterday.getVolume();
                     // 今天相比昨天缩量
-                    if (today.getVolume() < yesterday.getVolume() && percent < 0.7)
+                    if (today.getVolume() < yesterday.getVolume() && percent < 0.5)
                     {
                         String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
                         Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
                         results.add(new StockResult(symbol, stock.getName(), percent, 1, yesterday.getPercent(), today
                                 .getPercent()));
-                        // logger.info("昨天上涨今天下跌缩量股票 {} 缩量比{} {} {} {} {}", symbol, percent, yesterday.getPercent(),
-                        //        today.getPercent(), yesterday.getVolume(), today.getVolume());
                     }
                 }
 
+                // 碎阳上涨
+                if (threeDaysPercent > 5 && yesterday.getPercent() > 1 && lastday.getPercent() > 1
+                        && lastlastday.getPercent() > 0 && yesterday.getPercent() < 7 && lastday.getPercent() < 7
+                        && lastlastday.getPercent() < 7)
+                {
+                    String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
+                    Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
+                    results.add(new StockResult(symbol, stock.getName(), threeDaysPercent, 5, yesterday.getPercent(),
+                            today.getPercent()));
+                }
+
                 // 前天上涨今天下跌
-                if (lastday.getPercent() > 7 && today.getPercent() < -1)
+                if (lastday.getPercent() > 5 && today.getPercent() < -1)
                 {
                     float percent = (float) today.getVolume() / lastday.getVolume();
                     // 今天相比前天缩量
-                    if (today.getVolume() < lastday.getVolume() && percent < 0.8)
+                    if (today.getVolume() < lastday.getVolume() && percent < 0.5)
                     {
                         String stockInfo = RedisClient.hget(STOCKLIST_KEY, symbol);
                         Stock stock = JSONObject.parseObject(stockInfo, Stock.class);
                         results.add(new StockResult(symbol, stock.getName(), percent, 2, lastday.getPercent(), today
                                 .getPercent()));
-                        // logger.info("前天上涨今天下跌缩量股票 {} 缩量比 {} {} {} {} {}", symbol, percent, lastday.getPercent(),
-                        //        today.getPercent(), lastday.getVolume(), today.getVolume());
                     }
                 }
 
@@ -207,13 +214,13 @@ public class DataSpider
                 }*/
 
                 // 近三天没有数据的不处理
-                if ((now.getTime() - today.getTime().getTime()) > 1000 * 3600 * 24 * 4)
+                /*if ((now.getTime() - today.getTime().getTime()) > 1000 * 3600 * 24 * 4)
                 {
                     continue;
-                }
+                }*/
 
                 // 下跌下影线
-                if (today.getPercent() < 0 && (today.getHigh() - today.getLow()) / today.getLow() > 0.06)
+                /*if (today.getPercent() < 0 && (today.getHigh() - today.getLow()) / today.getLow() > 0.06)
                 {
                     // 以开盘收盘低点来计算
                     float val = today.getClose() < today.getOpen() ? today.getClose() : today.getOpen();
@@ -225,7 +232,7 @@ public class DataSpider
                         results.add(new StockResult(symbol, stock.getName(), percent, 3, lastday.getPercent(), today
                                 .getPercent()));
                     }
-                }
+                }*/
             }
         }
         Collections.sort(results);

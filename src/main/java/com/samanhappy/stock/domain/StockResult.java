@@ -9,7 +9,7 @@ public class StockResult implements Comparable<StockResult>
     // 缩量比
     private float volumeRatio;
 
-    // 选中策略，1昨天上涨今日下跌缩量，2前天上涨今日下跌缩量，3下影线，4今日放量上涨
+    // 选中策略，1昨天上涨今日下跌缩量，2前天上涨今日下跌缩量，3下影线，4今日放量上涨, 5碎阳
     private int strategy;
 
     private float firstPercent;
@@ -34,7 +34,7 @@ public class StockResult implements Comparable<StockResult>
         {
             if (this.strategy == o.getStrategy())
             {
-                if (strategy == 3 || strategy == 4)
+                if (strategy == 3 || strategy == 4 || strategy == 5)
                 {
                     if (this.volumeRatio <= o.getVolumeRatio())
                     {
@@ -87,6 +87,10 @@ public class StockResult implements Comparable<StockResult>
         else if (strategy == 4)
         {
             sb.append("FLSZ");
+        }
+        else if (strategy == 5)
+        {
+            sb.append("SYZ");
         }
         sb.append(' ');
         sb.append(symbol).append(' ');
